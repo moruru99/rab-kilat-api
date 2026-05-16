@@ -141,33 +141,6 @@ export default async (req: any, res: any) => {
 
     setCorsHeaders(res, req.headers.origin);
 
-    // ── Auth routes ──
-    if (path.startsWith('/api/auth/')) {
-      const headers = new Headers();
-      for (const [k, v] of Object.entries(req.headers)) {
-        if (v) headers.set(k, Array.isArray(v) ? v.join(', ') : v as string);
-      }
-      const webRequest = new Request(url.toString(), {
-        method: req.method,
-        headers,
-        body: await readBody(req) || undefined,
-      });
-
-      const auth = await getAuth().catch(() => null);
-      if (!auth) {
-        res.statusCode = 503;
-        res.setHeader('Content-Type', 'text/plain');
-        res.end('Auth unavailable');
-        return;
-      }
-
-      const webResponse = await auth.handler(webRequest);
-      res.statusCode = webResponse.status;
-      webResponse.headers.forEach((v: string, k: string) => res.setHeader(k, v));
-      res.end(await webResponse.text());
-      return;
-    }
-
     // ── Health ──
     if (path === '/api/health') {
       res.setHeader('Content-Type', 'application/json');
@@ -205,14 +178,8 @@ export default async (req: any, res: any) => {
 
     // ── Not found ──
     res.statusCode = 404;
-    res.setHeader('Content-Type', 'application/json');
-    const vercelHeaders: Record<string, string> = {};
-    for (const [k, v] of Object.entries(req.headers)) {
-      if (typeof v === 'string' && k.toLowerCase().startsWith('x-vercel')) {
-        vercelHeaders[k] = v;
-      }
-    }
-    res.end(JSON.stringify({ path, method: req.method, url: req.url, xVercel: vercelHeaders }));
+    res.setHeader('Content-Type', 'text/plain');
+    res.end('Not Found');
   } catch (err: any) {
     res.statusCode = 500;
     res.setHeader('Content-Type', 'application/json');
