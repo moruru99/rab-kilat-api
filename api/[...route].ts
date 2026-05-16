@@ -1,7 +1,8 @@
+import { getRequestListener } from '@hono/node-server';
 import app from '../src/index';
 
 export const config = {
   runtime: 'nodejs',
 };
 
-export default app.fetch;
+export default getRequestListener(app.fetch);
