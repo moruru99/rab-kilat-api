@@ -1,11 +1,17 @@
-import app from './_lib/index';
-
 export const config = {
   runtime: 'nodejs',
 };
 
 export default async (req: any, res: any) => {
+  const sendJson = (status: number, data: any) => {
+    res.statusCode = status;
+    res.setHeader('Content-Type', 'application/json');
+    res.end(JSON.stringify(data));
+  };
+
   try {
+    const app = (await import('./_lib/index')).default;
+
     const url = new URL(req.url, `http://${req.headers.host || 'localhost'}`);
     const headers = new Headers();
     for (const [k, v] of Object.entries(req.headers)) {
@@ -31,8 +37,6 @@ export default async (req: any, res: any) => {
     webResponse.headers.forEach((value, key) => res.setHeader(key, value));
     res.end(await webResponse.text());
   } catch (err: any) {
-    res.statusCode = 500;
-    res.setHeader('Content-Type', 'application/json');
-    res.end(JSON.stringify({ error: err.message, stack: err.stack }));
+    sendJson(500, { error: err.message, stack: err.stack });
   }
 };
