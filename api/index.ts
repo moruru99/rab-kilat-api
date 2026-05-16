@@ -205,23 +205,6 @@ export default async (req: any, res: any) => {
     }
     const webRequest = new Request(url.toString(), { method: req.method, headers, body });
 
-    // DEBUG: return URL info for /api/debug requests
-    if (url.pathname === '/api/debug') {
-      res.statusCode = 200;
-      res.setHeader('Content-Type', 'application/json');
-      res.end(JSON.stringify({
-        rawUrl: req.url,
-        host: req.headers.host,
-        pathname: url.pathname,
-        method: req.method,
-        headers: Object.fromEntries(
-          Object.entries(req.headers)
-            .filter(([k]) => k.toLowerCase().startsWith('x-vercel') || k.toLowerCase().startsWith('x-forwarded'))
-        ),
-      }));
-      return;
-    }
-
     const webResponse = await app.fetch(webRequest);
     res.statusCode = webResponse.status;
     webResponse.headers.forEach((value, key) => res.setHeader(key, value));
