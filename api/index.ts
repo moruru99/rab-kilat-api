@@ -124,15 +124,24 @@ app.use('/*', cors({
   credentials: true,
 }));
 
-app.get('/api/debug', (c) => {
-  return c.json({ url: c.req.url, path: new URL(c.req.url).pathname, method: c.req.method });
+app.get('/api/auth/session', async (c) => {
+  const auth = await getAuth().catch(() => null);
+  if (!auth) return c.text('getAuth failed', 503);
+  try {
+    return await auth.handler(c.req.raw);
+  } catch (err: any) {
+    return c.text(`auth.handler threw: ${err.message}`, 500);
+  }
 });
 
 app.all('/*', async (c, next) => {
   const url = new URL(c.req.url);
   if (url.pathname.startsWith('/api/auth/')) {
     const auth = await getAuth().catch(() => null);
-    if (!auth) return c.text('Auth unavailable', 503);
+    if (!auth) {
+      const errMsg = `Auth unavailable${_authError ? ': ' + (_authError as Error).message : ''}`;
+      return c.text(errMsg, 503);
+    }
     try {
       const res = await auth.handler(c.req.raw);
       return res;
