@@ -205,6 +205,21 @@ export default async (req: any, res: any) => {
     }
     const webRequest = new Request(url.toString(), { method: req.method, headers, body });
 
+    if (url.pathname === '/api/auth/session') {
+      const auth = await getAuth().catch(() => null);
+      if (!auth) {
+        res.statusCode = 503;
+        res.setHeader('Content-Type', 'text/plain');
+        res.end('getAuth returned null');
+        return;
+      }
+      const webResponse = await auth.handler(webRequest);
+      res.statusCode = webResponse.status;
+      webResponse.headers.forEach((value, key) => res.setHeader(key, value));
+      res.end(await webResponse.text());
+      return;
+    }
+
     const webResponse = await app.fetch(webRequest);
     res.statusCode = webResponse.status;
     webResponse.headers.forEach((value, key) => res.setHeader(key, value));
