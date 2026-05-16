@@ -107,12 +107,20 @@ async function getAuth() {
 const app = new Hono();
 
 app.onError((err, c) => {
-  console.error('Hono error:', err);
   return c.text(`Unhandled: ${err.message}`, 500);
 });
 
 app.use('/*', cors({
-  origin: ['http://localhost:5173', 'https://rab-kilat.vercel.app'],
+  origin: (origin, c) => {
+    if (!origin) return origin;
+    const allowed = [
+      'http://localhost:5173',
+      'https://rab-kilat.vercel.app',
+    ];
+    if (allowed.includes(origin)) return origin;
+    if (origin.endsWith('.vercel.app') && origin.includes('rab-kilat')) return origin;
+    return null;
+  },
   credentials: true,
 }));
 
