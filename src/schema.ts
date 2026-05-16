@@ -12,7 +12,7 @@ export const projects = pgTable('projects', {
     sections: any[];
     materials: any[];
     templates: any[];
-  }>().default({}),
+  }>().default({} as any),
   updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
 });
 
