@@ -6,7 +6,6 @@ import postgres from 'postgres';
 import { eq, desc } from 'drizzle-orm';
 import { betterAuth } from 'better-auth';
 
-// ── Auth schema ──
 const user = pgTable('user', {
   id: text('id').primaryKey(),
   name: text('name').notNull(),
@@ -50,7 +49,6 @@ const verification = pgTable('verification', {
   updatedAt: timestamp('updated_at').notNull(),
 });
 
-// ── Projects schema ──
 const projects = pgTable('projects', {
   id: text('id').primaryKey(),
   userId: text('user_id').notNull().default('local'),
@@ -72,13 +70,11 @@ const syncLog = pgTable('sync_log', {
   timestamp: timestamp('timestamp', { withTimezone: true }).defaultNow().notNull(),
 });
 
-// ── DB ──
 const connStr = process.env.DATABASE_URL
   || 'postgresql://postgres:AyanaBungas@127.0.0.1:5432/rab_kilat';
 const client = postgres(connStr, { max: 5 });
 const db = drizzle(client, { schema: { projects, syncLog, user, session, account, verification } });
 
-// ── Auth (lazy init) ──
 let _auth: any = null;
 let _authError: any = null;
 async function getAuth() {
@@ -108,7 +104,6 @@ async function getAuth() {
   }
 }
 
-// ── Hono app ──
 const app = new Hono();
 
 app.use('/*', cors({
@@ -164,32 +159,4 @@ app.post('/api/projects/save', async (c) => {
   }
 });
 
-export const config = { runtime: 'nodejs' };
-
-export default async (req: any, res: any) => {
-  try {
-    const url = new URL(req.url, `http://${req.headers.host || 'localhost'}`);
-    const headers = new Headers();
-    for (const [k, v] of Object.entries(req.headers)) {
-      if (v) headers.set(k, Array.isArray(v) ? v.join(', ') : v as string);
-    }
-
-    let body: string | undefined;
-    if (req.method !== 'GET' && req.method !== 'HEAD') {
-      const chunks: Buffer[] = [];
-      for await (const chunk of req) chunks.push(chunk);
-      body = Buffer.concat(chunks).toString();
-    }
-
-    const webRequest = new Request(url.toString(), { method: req.method, headers, body });
-    const webResponse = await app.fetch(webRequest);
-
-    res.statusCode = webResponse.status;
-    webResponse.headers.forEach((value, key) => res.setHeader(key, value));
-    res.end(await webResponse.text());
-  } catch (err: any) {
-    res.statusCode = 500;
-    res.setHeader('Content-Type', 'application/json');
-    res.end(JSON.stringify({ error: err.message, stack: err.stack }));
-  }
-};
+export default app;
