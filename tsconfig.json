@@ -8,5 +8,5 @@
     "outDir": "dist",
     "rootDir": "."
   },
-  "include": ["api/**/*.ts"]
+  "include": ["index.ts"]
 }
