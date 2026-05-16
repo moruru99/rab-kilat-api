@@ -116,7 +116,11 @@ app.all('/*', async (c, next) => {
   if (url.pathname.startsWith('/api/auth/')) {
     const auth = await getAuth().catch(() => null);
     if (!auth) return c.text('Auth unavailable', 503);
-    return auth.handler(c.req.raw);
+    try {
+      return auth.handler(c.req.raw);
+    } catch (err: any) {
+      return c.text(`Auth handler error: ${err.message}`, 500);
+    }
   }
   await next();
 });
