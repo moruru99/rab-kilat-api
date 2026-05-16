@@ -12,13 +12,12 @@ export default async (req: any, res: any) => {
       if (v) headers.set(k, Array.isArray(v) ? v.join(', ') : v as string);
     }
 
-    const body = req.method !== 'GET' && req.method !== 'HEAD'
-      ? await new Promise<Buffer>((resolve) => {
-          const chunks: Buffer[] = [];
-          req.on('data', (c: Buffer) => chunks.push(c));
-          req.on('end', () => resolve(Buffer.concat(chunks)));
-        })
-      : undefined;
+    let body: string | undefined;
+    if (req.method !== 'GET' && req.method !== 'HEAD') {
+      const chunks: Buffer[] = [];
+      for await (const chunk of req) chunks.push(chunk);
+      body = Buffer.concat(chunks).toString();
+    }
 
     const webRequest = new Request(url.toString(), {
       method: req.method,
