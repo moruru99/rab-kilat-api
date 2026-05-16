@@ -13,7 +13,7 @@ app.use('/*', cors({ origin: allowedOrigins, credentials: true }));
 app.all('/*', async (c, next) => {
   const url = new URL(c.req.url);
   if (url.pathname.startsWith('/api/auth/')) {
-    const { getAuth } = await import('./auth');
+    const { getAuth } = await import('./_auth');
     const auth = await getAuth();
     return auth.handler(c.req.raw);
   }
@@ -26,8 +26,8 @@ app.get('/api/health', (c) =>
 
 app.get('/api/projects/last', async (c) => {
   try {
-    const { db } = await import('./db');
-    const { projects } = await import('./schema');
+    const { db } = await import('./_db');
+    const { projects } = await import('./_schema');
     const { eq, desc } = await import('drizzle-orm');
     const rows = await db.select().from(projects)
       .orderBy(desc(projects.updatedAt)).limit(1);
@@ -39,8 +39,8 @@ app.get('/api/projects/last', async (c) => {
 
 app.post('/api/projects/save', async (c) => {
   try {
-    const { db } = await import('./db');
-    const { projects } = await import('./schema');
+    const { db } = await import('./_db');
+    const { projects } = await import('./_schema');
     const { eq } = await import('drizzle-orm');
     const body = await c.req.json();
     const { id, name, location, date, data } = body;

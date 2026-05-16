@@ -6,8 +6,8 @@ let _authError: Error | null = null;
 async function initAuth() {
   const [{ drizzleAdapter }, { db }, authSchema] = await Promise.all([
     import('@better-auth/drizzle-adapter'),
-    import('./db'),
-    import('./auth-schema'),
+    import('./_db'),
+    import('./_auth-schema'),
   ]);
 
   return betterAuth({

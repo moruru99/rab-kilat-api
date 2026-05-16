@@ -1,5 +1,5 @@
 import { getRequestListener } from '@hono/node-server';
-import app from './_lib/index';
+import app from './_app';
 
 export const config = {
   runtime: 'nodejs',
