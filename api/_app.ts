@@ -15,6 +15,7 @@ app.all('/*', async (c, next) => {
   if (url.pathname.startsWith('/api/auth/')) {
     const { getAuth } = await import('./_auth');
     const auth = await getAuth();
+    if (!auth) return c.text('Auth not initialized', 500);
     return auth.handler(c.req.raw);
   }
   await next();

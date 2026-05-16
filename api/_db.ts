@@ -1,6 +1,6 @@
 import { drizzle } from 'drizzle-orm/postgres-js';
 import postgres from 'postgres';
-import * as schema from './schema';
+import * as schema from './_schema';
 
 const connStr = process.env.DATABASE_URL
   || 'postgresql://postgres:AyanaBungas@127.0.0.1:5432/rab_kilat';

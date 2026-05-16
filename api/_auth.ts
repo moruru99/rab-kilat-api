@@ -1,6 +1,6 @@
 import { betterAuth } from 'better-auth';
 
-let _auth: Awaited<ReturnType<typeof betterAuth>> | null = null;
+let _auth: any = null;
 let _authError: Error | null = null;
 
 async function initAuth() {
