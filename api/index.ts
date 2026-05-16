@@ -206,7 +206,13 @@ export default async (req: any, res: any) => {
     // ── Not found ──
     res.statusCode = 404;
     res.setHeader('Content-Type', 'application/json');
-    res.end(JSON.stringify({ path, method: req.method, url: req.url }));
+    const vercelHeaders: Record<string, string> = {};
+    for (const [k, v] of Object.entries(req.headers)) {
+      if (typeof v === 'string' && k.toLowerCase().startsWith('x-vercel')) {
+        vercelHeaders[k] = v;
+      }
+    }
+    res.end(JSON.stringify({ path, method: req.method, url: req.url, xVercel: vercelHeaders }));
   } catch (err: any) {
     res.statusCode = 500;
     res.setHeader('Content-Type', 'application/json');
