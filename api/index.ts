@@ -205,11 +205,11 @@ export default async (req: any, res: any) => {
 
     // ── Not found ──
     res.statusCode = 404;
-    res.setHeader('Content-Type', 'text/plain');
-    res.end('Not Found');
+    res.setHeader('Content-Type', 'application/json');
+    res.end(JSON.stringify({ path, method: req.method, url: req.url }));
   } catch (err: any) {
     res.statusCode = 500;
-    res.setHeader('Content-Type', 'text/plain');
-    res.end(`Error: ${err.message}`);
+    res.setHeader('Content-Type', 'application/json');
+    res.end(JSON.stringify({ error: err.message, url: req?.url }));
   }
 };
