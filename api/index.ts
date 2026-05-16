@@ -1,5 +1,3 @@
-import { Hono } from 'hono';
-import { cors } from 'hono/cors';
 import { pgTable, text, jsonb, timestamp, boolean } from 'drizzle-orm/pg-core';
 import { drizzle } from 'drizzle-orm/postgres-js';
 import postgres from 'postgres';
@@ -104,129 +102,114 @@ async function getAuth() {
   }
 }
 
-const app = new Hono();
-
-app.onError((err, c) => {
-  return c.text(`Unhandled: ${err.message}`, 500);
-});
-
-app.use('/*', cors({
-  origin: (origin, c) => {
-    if (!origin) return origin;
-    const allowed = [
-      'http://localhost:5173',
-      'https://rab-kilat.vercel.app',
-    ];
-    if (allowed.includes(origin)) return origin;
-    if (origin.endsWith('.vercel.app') && origin.includes('rab-kilat')) return origin;
-    return null;
-  },
-  credentials: true,
-}));
-
-app.get('/api/auth/session', async (c) => {
-  const auth = await getAuth().catch(() => null);
-  if (!auth) return c.text('getAuth failed', 503);
-  try {
-    return await auth.handler(c.req.raw);
-  } catch (err: any) {
-    return c.text(`auth.handler threw: ${err.message}`, 500);
+// ── Helpers ──
+function setCorsHeaders(res: any, origin: string | undefined) {
+  if (!origin) return;
+  const allowed = ['http://localhost:5173', 'https://rab-kilat.vercel.app'];
+  if (allowed.includes(origin)) {
+    res.setHeader('Access-Control-Allow-Origin', origin);
+  } else if (origin.endsWith('.vercel.app') && origin.includes('rab-kilat')) {
+    res.setHeader('Access-Control-Allow-Origin', origin);
   }
-});
+  res.setHeader('Access-Control-Allow-Credentials', 'true');
+  res.setHeader('Access-Control-Allow-Methods', 'GET,POST,PUT,DELETE,OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type,Authorization');
+}
 
-app.all('/*', async (c, next) => {
-  const url = new URL(c.req.url);
-  if (url.pathname.startsWith('/api/auth/')) {
-    const auth = await getAuth().catch(() => null);
-    if (!auth) {
-      const errMsg = `Auth unavailable${_authError ? ': ' + (_authError as Error).message : ''}`;
-      return c.text(errMsg, 503);
-    }
-    try {
-      const res = await auth.handler(c.req.raw);
-      return res;
-    } catch (err: any) {
-      return c.text(`Auth error: ${err.message}`, 500);
-    }
-  }
-  await next();
-});
+function readBody(req: any): Promise<string> {
+  return new Promise((resolve) => {
+    if (req.method === 'GET' || req.method === 'HEAD') return resolve('');
+    const chunks: Buffer[] = [];
+    req.on('data', (c: Buffer) => chunks.push(c));
+    req.on('end', () => resolve(Buffer.concat(chunks).toString()));
+  });
+}
 
-app.get('/api/health', (c) =>
-  c.json({ status: 'ok', timestamp: new Date().toISOString() })
-);
-
-app.get('/api/projects/last', async (c) => {
-  try {
-    const rows = await db.select().from(projects)
-      .orderBy(desc(projects.updatedAt)).limit(1);
-    return c.json(rows[0] || null);
-  } catch (err: any) {
-    return c.json({ error: err.message }, 500);
-  }
-});
-
-app.post('/api/projects/save', async (c) => {
-  try {
-    const body = await c.req.json();
-    const { id, name, location, date, data } = body;
-    const now = new Date();
-
-    if (id) {
-      await db.update(projects)
-        .set({ name, location, date: date || '', data: data || {}, updatedAt: now })
-        .where(eq(projects.id, id))
-        .execute();
-    } else {
-      await db.insert(projects).values({
-        id: crypto.randomUUID(), name, location, date: date || '',
-        data: data || {}, updatedAt: now,
-      }).execute();
-    }
-
-    return c.json({ success: true });
-  } catch (err: any) {
-    return c.json({ error: err.message }, 500);
-  }
-});
-
+// ── Exported Vercel handler ──
 export default async (req: any, res: any) => {
   try {
-    const url = new URL(req.url, `http://${req.headers.host || 'localhost'}`);
-    const headers = new Headers();
-    for (const [k, v] of Object.entries(req.headers)) {
-      if (v) headers.set(k, Array.isArray(v) ? v.join(', ') : v as string);
+    // Handle CORS preflight
+    if (req.method === 'OPTIONS') {
+      setCorsHeaders(res, req.headers.origin);
+      res.statusCode = 204;
+      res.end();
+      return;
     }
-    let body: string | undefined;
-    if (req.method !== 'GET' && req.method !== 'HEAD') {
-      const chunks: Buffer[] = [];
-      for await (const chunk of req) chunks.push(chunk);
-      body = Buffer.concat(chunks).toString();
-    }
-    const webRequest = new Request(url.toString(), { method: req.method, headers, body });
 
-    if (url.pathname === '/api/auth/session') {
+    const url = new URL(req.url, `http://${req.headers.host || 'localhost'}`);
+    const path = url.pathname;
+
+    setCorsHeaders(res, req.headers.origin);
+
+    // ── Auth routes ──
+    if (path.startsWith('/api/auth/')) {
+      const headers = new Headers();
+      for (const [k, v] of Object.entries(req.headers)) {
+        if (v) headers.set(k, Array.isArray(v) ? v.join(', ') : v as string);
+      }
+      const webRequest = new Request(url.toString(), {
+        method: req.method,
+        headers,
+        body: await readBody(req) || undefined,
+      });
+
       const auth = await getAuth().catch(() => null);
       if (!auth) {
         res.statusCode = 503;
         res.setHeader('Content-Type', 'text/plain');
-        res.end('getAuth returned null');
+        res.end('Auth unavailable');
         return;
       }
+
       const webResponse = await auth.handler(webRequest);
       res.statusCode = webResponse.status;
-      webResponse.headers.forEach((value, key) => res.setHeader(key, value));
+      webResponse.headers.forEach((v: string, k: string) => res.setHeader(k, v));
       res.end(await webResponse.text());
       return;
     }
 
-    const webResponse = await app.fetch(webRequest);
-    res.statusCode = webResponse.status;
-    webResponse.headers.forEach((value, key) => res.setHeader(key, value));
-    res.end(await webResponse.text());
+    // ── Health ──
+    if (path === '/api/health') {
+      res.setHeader('Content-Type', 'application/json');
+      res.end(JSON.stringify({ status: 'ok', timestamp: new Date().toISOString() }));
+      return;
+    }
+
+    // ── Projects ──
+    if (path === '/api/projects/last' && req.method === 'GET') {
+      const rows = await db.select().from(projects)
+        .orderBy(desc(projects.updatedAt)).limit(1);
+      res.setHeader('Content-Type', 'application/json');
+      res.end(JSON.stringify(rows[0] || null));
+      return;
+    }
+
+    if (path === '/api/projects/save' && req.method === 'POST') {
+      const body = JSON.parse(await readBody(req));
+      const { id, name, location, date, data } = body;
+      const now = new Date();
+      if (id) {
+        await db.update(projects)
+          .set({ name, location, date: date || '', data: data || {}, updatedAt: now })
+          .where(eq(projects.id, id)).execute();
+      } else {
+        await db.insert(projects).values({
+          id: crypto.randomUUID(), name, location, date: date || '',
+          data: data || {}, updatedAt: now,
+        }).execute();
+      }
+      res.setHeader('Content-Type', 'application/json');
+      res.end(JSON.stringify({ success: true }));
+      return;
+    }
+
+    // ── Not found ──
+    res.statusCode = 404;
+    res.setHeader('Content-Type', 'text/plain');
+    res.end('Not Found');
   } catch (err: any) {
     res.statusCode = 500;
-    res.setHeader('Content-Type', 'application/json');
-    res.end(JSON.stringify({ error: err.message }));
+    res.setHeader('Content-Type', 'text/plain');
+    res.end(`Error: ${err.message}`);
   }
 };
