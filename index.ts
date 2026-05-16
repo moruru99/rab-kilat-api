@@ -106,6 +106,11 @@ async function getAuth() {
 
 const app = new Hono();
 
+app.onError((err, c) => {
+  console.error('Hono error:', err);
+  return c.text(`Unhandled: ${err.message}`, 500);
+});
+
 app.use('/*', cors({
   origin: ['http://localhost:5173', 'https://rab-kilat.vercel.app'],
   credentials: true,
@@ -117,9 +122,10 @@ app.all('/*', async (c, next) => {
     const auth = await getAuth().catch(() => null);
     if (!auth) return c.text('Auth unavailable', 503);
     try {
-      return auth.handler(c.req.raw);
+      const res = await auth.handler(c.req.raw);
+      return res;
     } catch (err: any) {
-      return c.text(`Auth handler error: ${err.message}`, 500);
+      return c.text(`Auth error: ${err.message}`, 500);
     }
   }
   await next();
